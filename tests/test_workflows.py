@@ -21,6 +21,8 @@ def test_production_workflow_security_and_schedule():
         assert "${{ inputs." not in step.get("run", "")
     assert "pull_request_target" not in text
     assert "--require-hashes" in text
+    assert "vars.MONITOR_ENABLED == 'true'" in job["if"]
+    assert "github.event_name == 'workflow_dispatch'" in job["if"]
 
 
 def test_ci_has_no_production_credentials():
@@ -29,3 +31,15 @@ def test_ci_has_no_production_credentials():
     config = yaml.load(text, Loader=yaml.BaseLoader)
     assert set(config["on"]) == {"push", "pull_request"}
     assert "postgres" in config["jobs"]["test"]["services"]
+
+
+def test_database_check_only_receives_database_secret():
+    text = (ROOT / ".github/workflows/database.yml").read_text(encoding="utf-8")
+    config = yaml.load(text, Loader=yaml.BaseLoader)
+    assert set(config["on"]) == {"workflow_dispatch"}
+    assert config["permissions"] == {"contents": "read"}
+    job = config["jobs"]["database"]
+    assert job["environment"] == "production" and "default_branch" in job["if"]
+    secret_names = re.findall(r"secrets\.([A-Z_]+)", text)
+    assert secret_names == ["DATABASE_URL"]
+    assert "python radar.py status" in text and "--send" not in text

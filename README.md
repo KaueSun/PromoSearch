@@ -2,7 +2,9 @@
 
 Monitor conservador de preços de notebooks gamers em Python. Execuções curtas no GitHub Actions, estado persistente em PostgreSQL privado e alertas por webhook Discord. Não exige computador ligado após a implantação.
 
-**Estado da entrega:** arquitetura e conector oficial Mercado Livre implementados; implantação e consultas reais ainda dependem de autenticação, autorização da API, banco e webhook do proprietário. Nenhuma oferta real foi validada nesta entrega. Nenhum recurso pago foi criado. O catálogo inicial está vazio intencionalmente.
+**Estado da entrega:** repositório público e CI aprovados; banco privado criado no Supabase; conector oficial Mercado Livre implementado e testado com fixtures. Senha da conta restrita, GitHub Secrets, autorização real da API e webhook ainda estão pendentes. Nenhuma oferta real foi validada nem recurso pago criado. O catálogo inicial está vazio intencionalmente.
+
+**Progresso da implantação:** repositório público e CI Linux aprovados. O Supabase já recebeu as dez tabelas no schema privado `radar`; o usuário `radar_app` tem somente leitura/gravação nessas tabelas, sem criar tabelas, papéis ou bancos. Senha do usuário, GitHub Secrets e primeiro teste de conexão pelo Actions ainda precisam da etapa privada do proprietário. Veja o [configurador assistido](docs/CONFIGURAR-BANCO.md).
 
 ## O que mudou no MVP
 
@@ -84,6 +86,8 @@ Sem `TEST_DATABASE_URL`, o teste PostgreSQL é explicitamente pulado. Para execu
 6. Revise ao menos um anúncio real conforme a seção seguinte. O catálogo vazio impede ativação acidental.
 7. Publique o código no repositório público **PromoSearch** após a autorização do proprietário. Crie o Environment **production**, restrinja deployments à branch principal e coloque os Secrets nesse ambiente. Não configure aprovação obrigatória a cada execução se quiser agendamento automático. Proteja a branch e revise alterações de código/workflow antes de integrá-las.
 8. Execute o workflow manualmente, confira o CI, o resumo do job, o histórico no banco e a execução seguinte. Valide o primeiro alerta real quando houver evidência suficiente. Não fabrique um desconto para testar o canal.
+
+Para a implantação assistida atual, use os scripts `docs/setup-schema.sql` e `docs/setup-access.sql` em vez de criar tabelas como proprietário `radar_app`: as tabelas pertencem ao administrador e a aplicação recebe somente CRUD. O workflow **Database check** verifica esse acesso separadamente, usando apenas `DATABASE_URL`. O agendamento do monitor fica desativado até definir a variável **de repositório** `MONITOR_ENABLED=true`, após configurar todas as credenciais e revisar anúncios reais. A execução manual continua disponível para configuração e diagnóstico.
 
 | GitHub Secret | Conteúdo |
 |---|---|
