@@ -8,7 +8,7 @@ O proprietário executou o configurador privado: a conexão administradora auten
 
 A revisão da entrada de senha e das reconexões passou em **36 testes locais do configurador/workflows**. Os testes verificam preservação de caracteres especiais, rejeição de controles de colagem/cancelamento, proibição de entrada visível no terminal e limite de duas reconexões somente para recusas de autenticação, mantendo a mesma senha e sem repetir ALTER ROLE. O proprietário utilizou a janela e concluiu a configuração real. A causa exata das recusas anteriores não foi comprovada: tanto a entrada quanto a política de reconexão foram alteradas.
 
-O configurador privado do Discord e seu workflow manual foram preparados. **57 testes locais dos configuradores/workflows** passaram, incluindo fixtures de validação do destino, transporte privado de Secrets, confirmação de mensagem, proteção contra reenvio após despacho incerto e isolamento do Secret do webhook. Nenhum webhook real foi usado nesses testes; a configuração real do Discord aguarda o proprietário.
+O configurador privado do Discord e seu workflow manual foram preparados. **57 testes locais dos configuradores/workflows** passaram, incluindo fixtures de validação do destino, transporte privado de Secrets, confirmação de mensagem, proteção contra reenvio após despacho incerto e isolamento do Secret do webhook. Nenhum webhook real foi usado nesses testes. Posteriormente, o proprietário cadastrou o webhook real em GitHub Secrets; o [Discord check](https://github.com/KaueSun/PromoSearch/actions/runs/39457382809) terminou com sucesso, incluindo confirmação pelo Discord do identificador da mensagem técnica. O [CI do commit 2097168](https://github.com/KaueSun/PromoSearch/actions/runs/39457291004) também passou. Essa mensagem não contém produto, preço ou promoção.
 
 ## Resultado executado
 
@@ -31,13 +31,13 @@ Os testes de PostgreSQL realmente gravaram/leram dados, exerceram índices/const
 
 | Entregável solicitado | Estado |
 |---|---|
-| Código modular | Implementado e publicado; configurador Discord preparado localmente |
-| Repositório público PromoSearch | Publicado em KaueSun/PromoSearch; CI do commit 782cd8a aprovado |
+| Código modular | Implementado e publicado; documentação registra os marcos verificados |
+| Repositório público PromoSearch | Publicado em KaueSun/PromoSearch; CI do commit 2097168 aprovado |
 | Banco persistente Supabase privado | Conexão restrita/Secrets configurados; acesso real pelo GitHub Actions confirmado |
 | Agendamento a cada 30 minutos | Workflow pronto, não ativado |
 | Consulta oficial Mercado Livre | Conector implementado e testado com fixtures; acesso real depende da conta autorizada |
 | Amazon/Shopee/KaBuM!/Magalu/Casas Bahia | Sem coleta implementada; bloqueios documentados |
-| Webhook Discord | Configurador privado e verificação na nuvem preparados e testados com fixtures; webhook real não configurado |
+| Webhook Discord | Secret configurado; entrega real de mensagem técnica pelo GitHub Actions confirmada pelo Discord |
 | Comparação com frete entre vendedores | Motor testado; conector atual não fornece cotação e não ativa esse critério |
 | Logs e histórico | Implementados; CI executado na nuvem, monitoramento real ainda pendente |
 | Funcionamento independente do PC | Arquitetura preparada; aceitação em nuvem ainda pendente |

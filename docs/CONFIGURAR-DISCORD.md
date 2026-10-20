@@ -23,3 +23,7 @@ O configurador solicita o workflow manual **Discord check**, que recebe somente 
 Confira o workflow verde e a mensagem **Conexao do Radar Gamer confirmada** no canal escolhido. Isso comprova GitHub Actions → Discord; não comprova consultas a lojas. A rotina de ofertas e o cron continuam aguardando credenciais oficiais e anúncios revisados.
 
 O programa não cria recursos pagos, não acessa mensagens privadas e não usa dados fictícios como ofertas. Testes automatizados desse fluxo usam exclusivamente fixtures sintéticas, com a rede substituída.
+
+## Resultado verificado no PromoSearch
+
+Em 20/10/2026, o proprietário concluiu o cadastro privado e o [Discord check](https://github.com/KaueSun/PromoSearch/actions/runs/39457382809) confirmou a entrega real da mensagem técnica pela nuvem. Não é necessário cadastrar o webhook novamente. As consultas de preços continuam aguardando autorização da fonte e anúncios revisados.
