@@ -9,21 +9,64 @@ from __future__ import annotations
 import argparse
 import base64
 import getpass
+import hashlib
 import json
 import os
 import re
 import secrets
-import ssl
 import subprocess
 import sys
-import tempfile
 import time
+from contextlib import contextmanager
 from pathlib import Path
 from urllib.parse import quote
 
 
 class SetupError(RuntimeError):
     pass
+
+
+CA_FILE = "certs/supabase-prod-ca-2021.crt"
+CA_SHA256 = "700723581420dd1ac98fd7e9ac529f0ef210eadcaf87fc868a3ad7d114c2f3b7"
+
+
+def certificate_path(root):
+    path = root / CA_FILE
+    if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != CA_SHA256:
+        raise SetupError("Certificado oficial ausente ou diferente do revisado; restaure o arquivo do projeto.")
+    return path
+
+
+@contextmanager
+def database_step(stage, *, password_changed=False):
+    """Report only fixed diagnostic labels, never raw driver messages or SQL."""
+    import psycopg
+
+    try:
+        yield
+    except psycopg.Error as exc:
+        message = str(exc).lower()
+        if any(text in message for text in ("certificate", "ssl error", "tls error")):
+            reason = "Falha na validacao TLS; confira o certificado oficial e a data do computador."
+        elif "circuit breaker" in message:
+            reason = "Pooler bloqueou tentativas temporariamente; aguarde alguns minutos antes de repetir."
+        elif exc.sqlstate == "28P01" or "password authentication failed" in message:
+            reason = "Autenticacao recusada; confira a senha do usuario desta etapa."
+        elif "tenant or user not found" in message:
+            reason = "Projeto/usuario nao localizado no pooler; confira host e referencia no painel Connect."
+        elif exc.sqlstate == "42501":
+            reason = "Permissao insuficiente; revise o acesso restrito aprovado."
+        elif any(text in message for text in ("timeout", "timed out")):
+            reason = "Tempo de conexao esgotado; confira rede e disponibilidade do projeto."
+        elif any(text in message for text in ("translate host", "getaddrinfo", "resolve hostname")):
+            reason = "Falha de DNS; confira rede e endereco do pooler."
+        else:
+            reason = "Falha de comunicacao com PostgreSQL; confira o projeto e tente novamente."
+        state = (
+            " A senha radar_app pode ter sido alterada; reutilize a mesma senha exclusiva ao repetir."
+            if password_changed else " Nenhuma senha foi alterada nesta tentativa."
+        )
+        raise SetupError(stage + ": " + reason + state) from None
 
 
 def run(command, *, payload=None, cwd=None, missing_ok=False):
@@ -47,7 +90,7 @@ def gh_json(*args, payload=None, missing_ok=False):
 def connection_url(project_ref, host, password):
     return (
         f"postgresql+psycopg://radar_app.{project_ref}:{quote(password, safe='')}"
-        f"@{host}:5432/postgres?sslmode=verify-full&sslrootcert=system"
+        f"@{host}:5432/postgres?sslmode=verify-full&sslrootcert={CA_FILE}"
     )
 
 
@@ -105,21 +148,31 @@ def configure_database(args, new_password, admin_password, ca_path):
         sslrootcert=str(ca_path),
         prepare_threshold=None,
     )
-    with psycopg.connect(
-        **common, user="postgres." + args.project_ref, password=admin_password, autocommit=True
-    ) as admin:
-        row = admin.execute(
-            "SELECT rolcanlogin,rolsuper,rolcreatedb,rolcreaterole,rolreplication,rolbypassrls "
-            "FROM pg_roles WHERE rolname='radar_app'"
-        ).fetchone()
-        if row != (True, False, False, False, False, False):
-            raise SetupError("radar_app nao existe ou possui privilegios diferentes dos aprovados.")
-        # libpq hashes locally. The ALTER ROLE statement contains a SCRAM verifier, not cleartext.
-        verifier = admin.pgconn.encrypt_password(new_password.encode("utf-8"), b"radar_app", b"scram-sha-256")
-        admin.execute(
-            sql.SQL("ALTER ROLE radar_app PASSWORD {}").format(sql.Literal(verifier.decode("ascii")))
+    print("Validando conexao administradora com certificado oficial...")
+    with database_step("Conexao administradora"):
+        admin = psycopg.connect(
+            **common, user="postgres." + args.project_ref, password=admin_password, autocommit=True
         )
-    with psycopg.connect(**common, user="radar_app." + args.project_ref, password=new_password) as app:
+    with admin:
+        with database_step("Verificacao do usuario restrito"):
+            row = admin.execute(
+                "SELECT rolcanlogin,rolsuper,rolcreatedb,rolcreaterole,rolreplication,rolbypassrls "
+                "FROM pg_roles WHERE rolname='radar_app'"
+            ).fetchone()
+            if row != (True, False, False, False, False, False):
+                raise SetupError("radar_app nao existe ou possui privilegios diferentes dos aprovados.")
+        # libpq hashes locally. The ALTER ROLE statement contains a SCRAM verifier, not cleartext.
+        with database_step("Definicao da senha restrita", password_changed=True):
+            verifier = admin.pgconn.encrypt_password(
+                new_password.encode("utf-8"), b"radar_app", b"scram-sha-256"
+            )
+            admin.execute(
+                sql.SQL("ALTER ROLE radar_app PASSWORD {}").format(sql.Literal(verifier.decode("ascii")))
+            )
+    print("Validando conexao e permissoes de radar_app...")
+    with database_step("Conexao restrita", password_changed=True), psycopg.connect(
+        **common, user="radar_app." + args.project_ref, password=new_password
+    ) as app:
         if app.execute("SELECT current_user, current_schema()").fetchone() != ("radar_app", "radar"):
             raise SetupError("A conexao nao usou o usuario/schema esperado.")
         count = app.execute(
@@ -171,6 +224,7 @@ def execute(args):
         for s in gh_json("secret", "list", "--repo", args.repo, "--env", "production", "--json", "name")
     }
     if "DATABASE_URL" not in names:
+        ca_path = certificate_path(root)
         # Detect missing dependencies before asking for private credentials.
         try:
             import psycopg  # noqa: F401
@@ -188,13 +242,7 @@ def execute(args):
             raise SetupError("Nova senha muito curta ou confirmacao diferente; nenhuma senha foi alterada.")
         if new_password == admin_password:
             raise SetupError("Use uma senha diferente da administradora; nenhuma senha foi alterada.")
-        with tempfile.TemporaryDirectory(prefix="promosearch-ca-") as folder:
-            ca_path = Path(folder) / "roots.pem"
-            roots = ssl.create_default_context().get_ca_certs(binary_form=True)
-            if not roots:
-                raise SetupError("Nao foi possivel carregar as autoridades de certificacao do sistema.")
-            ca_path.write_text("".join(ssl.DER_cert_to_PEM_cert(c) for c in roots), encoding="ascii")
-            configure_database(args, new_password, admin_password, ca_path)
+        configure_database(args, new_password, admin_password, ca_path)
         set_secret(
             args.repo, "DATABASE_URL", connection_url(args.project_ref, args.pooler_host, new_password)
         )

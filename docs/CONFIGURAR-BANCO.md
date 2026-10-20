@@ -32,9 +32,11 @@ O configurador:
 - Cria `TOKEN_ENCRYPTION_KEY` somente se ausente. Uma chave existente é preservada para não invalidar tokens cifrados.
 - Dispara o workflow **Database check**. Esse workflow verifica conexão e estado do banco sem acessar lojas nem enviar Discord.
 
-As senhas não aparecem na tela, no chat, em argumentos de processos ou em arquivos. A senha administradora não é salva no GitHub. O arquivo temporário contém somente certificados públicos de autoridades certificadoras, e é removido ao terminar. O script não instala serviços, não cria recursos pagos e não ativa o monitoramento automaticamente.
+As senhas não aparecem na tela, no chat, em argumentos de processos ou em arquivos. A senha administradora não é salva no GitHub. O certificado público oficial do Supabase está em `certs/supabase-prod-ca-2021.crt`; o configurador verifica seu SHA-256 antes de usá-lo. Tanto a configuração local quanto a conexão nos Actions exigem validação da cadeia e do hostname (`verify-full`). A URL salva aponta para esse arquivo relativo à raiz do repositório; execute o aplicativo nessa pasta, como fazem os workflows. O script não instala serviços, não cria recursos pagos e não ativa o monitoramento automaticamente.
 
 Se `DATABASE_URL` já existir, o configurador não altera a senha nem sobrescreve a conexão existente; apenas preserva a configuração e solicita nova verificação. Se houver erro depois de definir a senha, execute novamente usando a mesma senha exclusiva que acabou de escolher. Erros de bibliotecas são sanitizados para não expor URI ou SQL.
+
+O erro informa a etapa (administradora, definição da senha ou conexão restrita) e um motivo seguro: certificado, autenticação, DNS, timeout, permissão ou bloqueio temporário. Não compartilhe a mensagem bruta do driver nem sua URL de conexão. Uma falha antes de definir a senha é indicada explicitamente; uma falha durante/depois dessa operação pode significar que a senha de `radar_app` já foi alterada.
 
 ## Confirmação da nuvem
 

@@ -1,7 +1,7 @@
 from argparse import Namespace
-from contextlib import nullcontext
 from types import SimpleNamespace
 
+import psycopg
 import pytest
 
 from tools import configure_supabase as setup
@@ -30,7 +30,79 @@ def test_url_encodes_password_and_requires_certificate_verification():
     parsed = urlsplit(url)
     assert unquote(parsed.password) == "TEST:/@?#% ONLY"
     assert parsed.hostname == "aws-1-ca-central-1.pooler.supabase.com"
-    assert parse_qs(parsed.query) == {"sslmode": ["verify-full"], "sslrootcert": ["system"]}
+    assert parse_qs(parsed.query) == {"sslmode": ["verify-full"], "sslrootcert": [setup.CA_FILE]}
+
+
+def test_official_certificate_is_present_and_pinned(tmp_path):
+    from pathlib import Path
+
+    assert setup.certificate_path(Path(setup.__file__).resolve().parents[1]).is_file()
+    target = tmp_path / setup.CA_FILE
+    target.parent.mkdir()
+    target.write_text("TEST_ONLY_UNTRUSTED_CERTIFICATE")
+    with pytest.raises(setup.SetupError, match="Certificado oficial"):
+        setup.certificate_path(tmp_path)
+
+
+@pytest.mark.parametrize(
+    "message,expected",
+    [
+        ("SSL error: certificate verify failed", "validacao TLS"),
+        ("password authentication failed", "Autenticacao recusada"),
+        ("Circuit breaker open", "temporariamente"),
+        ("Tenant or user not found", "nao localizado"),
+        ("connection timeout expired", "Tempo de conexao"),
+        ("could not translate host name", "Falha de DNS"),
+        ("unexpected response", "Falha de comunicacao"),
+    ],
+)
+def test_database_errors_report_safe_reason_and_stage(message, expected):
+    with pytest.raises(setup.SetupError) as error:
+        with setup.database_step("Conexao administradora"):
+            raise psycopg.OperationalError(message + " TEST_ONLY_PRIVATE_PASSWORD_AND_URL")
+    assert expected in str(error.value)
+    assert "Conexao administradora" in str(error.value)
+    assert "Nenhuma senha foi alterada" in str(error.value)
+    assert "TEST_ONLY_PRIVATE" not in str(error.value)
+
+
+def test_post_alter_error_reports_possible_password_change():
+    with pytest.raises(setup.SetupError, match="pode ter sido alterada"):
+        with setup.database_step("Conexao restrita", password_changed=True):
+            raise psycopg.OperationalError("password authentication failed TEST_ONLY_PRIVATE")
+
+
+@pytest.mark.parametrize("fail_on,stage", [(1, "Conexao administradora"), (2, "Conexao restrita")])
+def test_database_failure_is_attributed_to_correct_connection(monkeypatch, capsys, fail_on, stage):
+    calls = []
+
+    class Admin:
+        pgconn = SimpleNamespace(encrypt_password=lambda *args: b"TEST_ONLY_SCRAM_VERIFIER")
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def execute(self, *args):
+            return SimpleNamespace(fetchone=lambda: (True, False, False, False, False, False))
+
+    def connect(**kwargs):
+        calls.append(kwargs)
+        if len(calls) == fail_on:
+            raise psycopg.OperationalError("password authentication failed TEST_ONLY_PRIVATE")
+        return Admin()
+
+    monkeypatch.setattr(psycopg, "connect", connect)
+    args = Namespace(project_ref="a" * 20, pooler_host="aws-1-ca-central-1.pooler.supabase.com")
+    with pytest.raises(setup.SetupError, match=stage) as error:
+        setup.configure_database(args, "TEST_ONLY_APP", "TEST_ONLY_ADMIN", "TEST_ONLY_CA_PATH")
+    assert calls[0]["sslmode"] == "verify-full"
+    assert calls[0]["sslrootcert"] == "TEST_ONLY_CA_PATH"
+    assert ("pode ter sido alterada" in str(error.value)) == (fail_on == 2)
+    output = capsys.readouterr()
+    assert "TEST_ONLY" not in str(error.value) + output.out + output.err
 
 
 def test_failed_command_does_not_leak_output(monkeypatch):
@@ -127,7 +199,7 @@ def test_unexpected_library_error_is_sanitized(monkeypatch, capsys):
 
 
 @pytest.fixture
-def operator_flow(monkeypatch, tmp_path):
+def operator_flow(monkeypatch):
     args = Namespace(
         repo="owner/repo", project_ref="a" * 20, pooler_host="aws-1-ca-central-1.pooler.supabase.com"
     )
@@ -162,7 +234,6 @@ def operator_flow(monkeypatch, tmp_path):
     monkeypatch.setattr(setup.getpass, "getpass", lambda _: journal["passwords"].pop(0))
     monkeypatch.setattr(setup, "configure_database", lambda *a: journal["database"].append(a))
     monkeypatch.setattr(setup, "set_secret", lambda repo, name, value: journal["saved"].update({name: value}))
-    monkeypatch.setattr(setup.tempfile, "TemporaryDirectory", lambda **kw: nullcontext(str(tmp_path)))
     return args, journal
 
 

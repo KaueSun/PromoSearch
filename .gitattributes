@@ -1,0 +1,2 @@
+# Preserve the exact public certificate bytes used by the SHA-256 check on all platforms.
+certs/*.crt -text

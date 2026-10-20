@@ -13,7 +13,9 @@ O configurador privado e o workflow Database check foram preparados. Os testes l
 - Cobertura total medida: **85%**; análise de ofertas 99%, armazenamento 98%.
 - Verificação estática e formatação: aprovadas.
 - Ambiente executado: Windows, Python 3.14.8 e PostgreSQL **18.4 real**, local e descartável, sem vínculo com Supabase.
-- Dependências com versões/hashes verificadas na instalação local; resolução de dependências Linux/Python 3.12 validada em dry-run. O CI Linux/Python 3.12 ainda precisa ser executado no GitHub após a publicação.
+- Dependências com versões/hashes verificadas na instalação local; resolução de dependências Linux/Python 3.12 validada em dry-run. O [CI Linux/Python 3.12 do commit 88e6a30](https://github.com/KaueSun/PromoSearch/actions/runs/39451460669) passou no GitHub.
+- Após incluir o certificado oficial do Supabase e diagnóstico seguro por etapa: **89 testes locais aprovados**, incluindo PostgreSQL 18 real, e análise estática aprovada. O CI desta correção aguarda sua publicação pelo configurador.
+- Teste real sem senha no Session pooler: autoridades do sistema falharam na validação; o certificado público indicado pelo painel Supabase permitiu ao libpq validar cadeia/hostname e chegar ao pedido de senha. Isso ainda não comprova autenticação nem acesso aos dados pela nuvem.
 
 ## O que os testes cobrem
 
@@ -25,15 +27,15 @@ Os testes de PostgreSQL realmente gravaram/leram dados, exerceram índices/const
 
 | Entregável solicitado | Estado |
 |---|---|
-| Código modular | Implementado localmente |
-| Repositório público PromoSearch | Pendente de autorização explícita e autenticação GitHub |
-| Banco persistente Supabase privado | Scripts e conexão preparados; projeto/papel/Secrets ainda não configurados |
+| Código modular | Implementado e publicado; correção TLS preparada localmente |
+| Repositório público PromoSearch | Publicado em KaueSun/PromoSearch; CI anterior aprovado |
+| Banco persistente Supabase privado | Projeto/schema/dez tabelas/papel restrito verificados; senha/conexão/Secrets aguardam configuração pelo proprietário |
 | Agendamento a cada 30 minutos | Workflow pronto, não ativado |
 | Consulta oficial Mercado Livre | Conector implementado e testado com fixtures; acesso real depende da conta autorizada |
 | Amazon/Shopee/KaBuM!/Magalu/Casas Bahia | Sem coleta implementada; bloqueios documentados |
 | Webhook Discord | Payload/fluxo de entrega testados com fixture; webhook real não configurado |
 | Comparação com frete entre vendedores | Motor testado; conector atual não fornece cotação e não ativa esse critério |
-| Logs e histórico | Implementados; CI/produção ainda não executados na nuvem |
+| Logs e histórico | Implementados; CI executado na nuvem, monitoramento real ainda pendente |
 | Funcionamento independente do PC | Arquitetura preparada; aceitação em nuvem ainda pendente |
 
 Não houve emissão de preço fictício a um canal real, scraping, acesso ao WhatsApp, contratação paga ou publicação de credenciais.
