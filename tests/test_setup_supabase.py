@@ -208,11 +208,9 @@ def operator_flow(monkeypatch):
         "saved": {},
         "database": [],
         "commands": [],
-        "passwords": [
-            "TEST_ONLY_ADMIN_PRIVATE",
-            "TEST_ONLY_APP_PASSWORD_123456789",
-            "TEST_ONLY_APP_PASSWORD_123456789",
-        ],
+        "passwords": ["TEST_ONLY_ADMIN_PRIVATE"],
+        "prompts": [],
+        "generation_sizes": [],
     }
 
     def command(argv, **kwargs):
@@ -231,7 +229,16 @@ def operator_flow(monkeypatch):
     monkeypatch.setattr(setup, "run", command)
     monkeypatch.setattr(setup, "gh_json", api)
     monkeypatch.setattr(setup, "configure_environment", lambda _: None)
-    monkeypatch.setattr(setup.getpass, "getpass", lambda _: journal["passwords"].pop(0))
+    def prompt(label):
+        journal["prompts"].append(label)
+        return journal["passwords"].pop(0)
+
+    def generate(size):
+        journal["generation_sizes"].append(size)
+        return "TEST_ONLY_APP_PASSWORD_123456789"
+
+    monkeypatch.setattr(setup.getpass, "getpass", prompt)
+    monkeypatch.setattr(setup.secrets, "token_urlsafe", generate)
     monkeypatch.setattr(setup, "configure_database", lambda *a: journal["database"].append(a))
     monkeypatch.setattr(setup, "set_secret", lambda repo, name, value: journal["saved"].update({name: value}))
     return args, journal
@@ -242,6 +249,8 @@ def test_operator_flow_never_sends_admin_password_to_github(operator_flow, capsy
 
     args, journal = operator_flow
     assert setup.execute(args) == 0
+    assert len(journal["prompts"]) == 1
+    assert journal["generation_sizes"] == [32]
     assert journal["database"][0][2] == "TEST_ONLY_ADMIN_PRIVATE"
     assert "TEST_ONLY_APP_PASSWORD_123456789" in journal["saved"]["DATABASE_URL"]
     assert "TEST_ONLY_ADMIN_PRIVATE" not in str(journal["saved"])
@@ -266,12 +275,14 @@ def test_existing_database_and_encryption_key_are_not_rotated(operator_flow):
     journal["secret_names"] = ["DATABASE_URL", "TOKEN_ENCRYPTION_KEY"]
     assert setup.execute(args) == 0
     assert not journal["saved"] and not journal["database"]
-    assert len(journal["passwords"]) == 3
+    assert len(journal["passwords"]) == 1
+    assert not journal["prompts"] and not journal["generation_sizes"]
 
 
-def test_password_mismatch_stops_before_database_or_secret_changes(operator_flow):
+def test_empty_admin_password_stops_before_database_or_secret_changes(operator_flow):
     args, journal = operator_flow
-    journal["passwords"][-1] = "TEST_ONLY_MISMATCH"
-    with pytest.raises(setup.SetupError, match="confirmacao diferente"):
+    journal["passwords"] = [""]
+    with pytest.raises(setup.SetupError, match="administradora ficou vazia"):
         setup.execute(args)
     assert not journal["database"] and not journal["saved"]
+    assert not journal["generation_sizes"]

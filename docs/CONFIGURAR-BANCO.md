@@ -24,7 +24,7 @@ O configurador:
 
 - Publica os commits locais já revisados para disponibilizar o workflow de banco.
 - Prepara o Environment `production`, restringindo novos ambientes à branch `main` e preservando revisores/esperas existentes. Políticas existentes de branches protegidas são mantidas.
-- Solicita a senha administradora do projeto e uma senha nova, exclusiva, para `radar_app`, com confirmação. Use 20 ou mais caracteres e guarde a nova senha em local seguro.
+- Solicita apenas a senha administradora do banco do projeto (não a senha de login do painel Supabase). Gera automaticamente uma senha exclusiva para `radar_app`, usando 32 bytes aleatórios seguros (256 bits), sem exibi-la nem pedir confirmação.
 - Envia a senha administradora somente ao PostgreSQL Supabase, com TLS e validação de certificado/hostname.
 - Calcula o verificador SCRAM localmente antes de definir a senha de `radar_app`; a instrução SQL não contém sua senha nova em texto claro.
 - Verifica a conexão com `radar_app` e testa leitura/gravação numa transação descartada, sem inserir preços fictícios.
@@ -34,7 +34,7 @@ O configurador:
 
 As senhas não aparecem na tela, no chat, em argumentos de processos ou em arquivos. A senha administradora não é salva no GitHub. O certificado público oficial do Supabase está em `certs/supabase-prod-ca-2021.crt`; o configurador verifica seu SHA-256 antes de usá-lo. Tanto a configuração local quanto a conexão nos Actions exigem validação da cadeia e do hostname (`verify-full`). A URL salva aponta para esse arquivo relativo à raiz do repositório; execute o aplicativo nessa pasta, como fazem os workflows. O script não instala serviços, não cria recursos pagos e não ativa o monitoramento automaticamente.
 
-Se `DATABASE_URL` já existir, o configurador não altera a senha nem sobrescreve a conexão existente; apenas preserva a configuração e solicita nova verificação. Se houver erro depois de definir a senha, execute novamente usando a mesma senha exclusiva que acabou de escolher. Erros de bibliotecas são sanitizados para não expor URI ou SQL.
+Se `DATABASE_URL` já existir, o configurador não altera a senha nem sobrescreve a conexão existente; apenas preserva a configuração e solicita nova verificação. Se houver erro depois de definir a senha e antes de salvar o Secret, execute novamente: uma nova senha aleatória será gerada para concluir a configuração. A senha de `radar_app` fica somente na memória durante essa etapa e, depois, na conexão privada do GitHub Secrets. Erros de bibliotecas são sanitizados para não expor URI ou SQL.
 
 O erro informa a etapa (administradora, definição da senha ou conexão restrita) e um motivo seguro: certificado, autenticação, DNS, timeout, permissão ou bloqueio temporário. Não compartilhe a mensagem bruta do driver nem sua URL de conexão. Uma falha antes de definir a senha é indicada explicitamente; uma falha durante/depois dessa operação pode significar que a senha de `radar_app` já foi alterada.
 

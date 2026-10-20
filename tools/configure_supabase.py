@@ -63,7 +63,7 @@ def database_step(stage, *, password_changed=False):
         else:
             reason = "Falha de comunicacao com PostgreSQL; confira o projeto e tente novamente."
         state = (
-            " A senha radar_app pode ter sido alterada; reutilize a mesma senha exclusiva ao repetir."
+            " A senha radar_app pode ter sido alterada; execute novamente para gerar outra automaticamente."
             if password_changed else " Nenhuma senha foi alterada nesta tentativa."
         )
         raise SetupError(stage + ": " + reason + state) from None
@@ -235,13 +235,14 @@ def execute(args):
 
         print("A senha administradora sera enviada somente ao seu PostgreSQL Supabase por TLS.")
         print("No GitHub sera salva apenas a conexao do usuario restrito radar_app.")
+        print("A senha de radar_app sera gerada automaticamente; nao e necessario criar ou confirmar uma senha.")
         admin_password = getpass.getpass("Senha do banco que voce definiu ao criar o projeto: ")
-        new_password = getpass.getpass("Nova senha exclusiva para radar_app (20+ caracteres): ")
-        confirmation = getpass.getpass("Repita a nova senha: ")
-        if len(new_password) < 20 or not secrets.compare_digest(new_password.encode(), confirmation.encode()):
-            raise SetupError("Nova senha muito curta ou confirmacao diferente; nenhuma senha foi alterada.")
-        if new_password == admin_password:
-            raise SetupError("Use uma senha diferente da administradora; nenhuma senha foi alterada.")
+        if not admin_password:
+            raise SetupError("A senha administradora ficou vazia; nenhuma senha foi alterada.")
+        # 32 random bytes (256 bits), kept only in memory until validated and saved to Secrets.
+        new_password = secrets.token_urlsafe(32)
+        while new_password == admin_password:
+            new_password = secrets.token_urlsafe(32)
         configure_database(args, new_password, admin_password, ca_path)
         set_secret(
             args.repo, "DATABASE_URL", connection_url(args.project_ref, args.pooler_host, new_password)

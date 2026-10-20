@@ -4,7 +4,7 @@
 
 O repositório público foi publicado e o CI original de Linux/Python 3.12 foi aprovado. No Supabase Free, foram criadas as dez tabelas do schema `radar`; consultas reais verificaram ausência de acesso por `anon`, `authenticated` e `service_role`. O usuário `radar_app` foi criado mediante aprovação do proprietário; outra consulta real confirmou CRUD nas dez tabelas e ausência de privilégios administrativos ou CREATE no schema. Nenhuma senha foi definida pelo agente.
 
-O configurador privado e o workflow Database check foram preparados. Os testes locais adicionais verificam transporte de segredos por stdin, ausência da senha administradora nos dados enviados ao GitHub, preservação de configurações existentes e interrupção antes de alterar o banco quando há confirmação de senha incorreta. Um teste manual em PostgreSQL local descartável verificou o verificador SCRAM e leitura/gravação com rollback usando senha fictícia. A autenticação real, gravação dos Secrets e execução do Database check ainda aguardam o proprietário.
+O configurador privado e o workflow Database check foram preparados. Os testes locais adicionais verificam transporte de segredos por stdin, ausência da senha administradora nos dados enviados ao GitHub, preservação de configurações existentes, geração automática da senha restrita com 32 bytes aleatórios e interrupção antes de alterar o banco quando a senha administradora fica vazia. Há somente um pedido de senha ao operador. Um teste manual em PostgreSQL local descartável verificou o verificador SCRAM e leitura/gravação com rollback usando senha fictícia. A autenticação real, gravação dos Secrets e execução do Database check ainda aguardam o proprietário.
 
 ## Resultado executado
 
