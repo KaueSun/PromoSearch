@@ -6,6 +6,8 @@ O repositório público foi publicado e o CI original de Linux/Python 3.12 foi a
 
 O configurador privado e o workflow Database check foram preparados. Os testes locais adicionais verificam transporte de segredos por stdin, ausência da senha administradora nos dados enviados ao GitHub, preservação de configurações existentes, geração automática da senha restrita com 32 bytes aleatórios e interrupção antes de alterar o banco quando a senha administradora fica vazia. Há somente um pedido de senha ao operador. Um teste manual em PostgreSQL local descartável verificou o verificador SCRAM e leitura/gravação com rollback usando senha fictícia. A autenticação real, gravação dos Secrets e execução do Database check ainda aguardam o proprietário.
 
+A revisão da entrada de senha e das reconexões passou em **36 testes locais do configurador/workflows**. Os testes verificam preservação de caracteres especiais, rejeição de controles de colagem/cancelamento, proibição de entrada visível no terminal e limite de duas reconexões somente para recusas de autenticação, mantendo a mesma senha e sem repetir ALTER ROLE. A janela ainda precisa ser utilizada pelo proprietário com sua senha privada; isso não comprova que a autenticação real foi resolvida.
+
 ## Resultado executado
 
 - MVP original: **8 testes aprovados**, antes das alterações.

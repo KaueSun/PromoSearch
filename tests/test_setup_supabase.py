@@ -94,7 +94,7 @@ def test_database_failure_is_attributed_to_correct_connection(monkeypatch, capsy
             raise psycopg.OperationalError("password authentication failed TEST_ONLY_PRIVATE")
         return Admin()
 
-    monkeypatch.setattr(psycopg, "connect", connect)
+    monkeypatch.setattr(setup, "connect_with_auth_retry", connect)
     args = Namespace(project_ref="a" * 20, pooler_host="aws-1-ca-central-1.pooler.supabase.com")
     with pytest.raises(setup.SetupError, match=stage) as error:
         setup.configure_database(args, "TEST_ONLY_APP", "TEST_ONLY_ADMIN", "TEST_ONLY_CA_PATH")
@@ -116,6 +116,75 @@ def test_failed_command_does_not_leak_output(monkeypatch):
     with pytest.raises(setup.SetupError) as error:
         setup.run(["gh", "api", "user"])
     assert "PRIVATE_TEST" not in str(error.value)
+
+
+def test_gui_password_preserves_symbols_without_exposing_them(monkeypatch, capsys):
+    password = "TEST_ONLY_á:/@%?' secret"
+    monkeypatch.setattr(setup, "gui_password", lambda _: password)
+    args = Namespace(project_ref="a" * 20, password_input="gui")
+    assert setup.read_admin_password(args) == password
+    output = capsys.readouterr()
+    assert password not in output.out + output.err
+
+
+@pytest.mark.parametrize("value", ["\x16", "TEST_ONLY\r\n", "TEST_ONLY\t", None])
+def test_bad_paste_or_cancel_is_blocked_before_connection(value, monkeypatch):
+    monkeypatch.setattr(setup, "gui_password", lambda _: value)
+    args = Namespace(project_ref="a" * 20, password_input="gui")
+    with pytest.raises(setup.SetupError) as error:
+        setup.read_admin_password(args)
+    assert "TEST_ONLY" not in str(error.value)
+
+
+def test_console_does_not_fall_back_to_echoing_password(monkeypatch):
+    import warnings
+
+    def unavailable(_):
+        warnings.warn("TEST_ONLY_PRIVATE", setup.getpass.GetPassWarning)
+        pytest.fail("Must stop before password entry becomes visible")
+
+    monkeypatch.setattr(setup.getpass, "getpass", unavailable)
+    with pytest.raises(setup.SetupError, match="sem entrada privada"):
+        setup.read_admin_password(Namespace(password_input="console"))
+
+
+def test_pooler_reconnects_with_same_password_without_repeating_alter(monkeypatch, capsys):
+    calls, delays = [], []
+    connection = object()
+
+    def connect(**kwargs):
+        calls.append(kwargs)
+        if len(calls) < 3:
+            raise psycopg.OperationalError("password authentication failed TEST_ONLY_PRIVATE")
+        return connection
+
+    monkeypatch.setattr(psycopg, "connect", connect)
+    monkeypatch.setattr(setup.time, "sleep", delays.append)
+    assert setup.connect_with_auth_retry(password="TEST_ONLY_PRIVATE") is connection
+    assert len(calls) == 3 and delays == [15, 15]
+    assert all(c == {"password": "TEST_ONLY_PRIVATE"} for c in calls)
+    output = capsys.readouterr()
+    assert "TEST_ONLY_PRIVATE" not in output.out + output.err
+
+
+@pytest.mark.parametrize("message,expected_calls", [
+    ("password authentication failed TEST_ONLY_PRIVATE", 3),
+    ("certificate verify failed TEST_ONLY_PRIVATE", 1),
+    ("Circuit breaker open TEST_ONLY_PRIVATE", 1),
+])
+def test_reconnect_is_bounded_and_only_for_authentication(message, expected_calls, monkeypatch):
+    calls = []
+
+    def connect(**kwargs):
+        calls.append(kwargs)
+        raise psycopg.OperationalError(message)
+
+    monkeypatch.setattr(psycopg, "connect", connect)
+    monkeypatch.setattr(setup.time, "sleep", lambda _: None)
+    with pytest.raises(setup.SetupError):
+        with setup.database_step("Conexao administradora"):
+            setup.connect_with_auth_retry(password="TEST_ONLY_PRIVATE")
+    assert len(calls) == expected_calls
 
 
 def test_existing_reviewer_policy_is_preserved(monkeypatch):
@@ -237,7 +306,7 @@ def operator_flow(monkeypatch):
         journal["generation_sizes"].append(size)
         return "TEST_ONLY_APP_PASSWORD_123456789"
 
-    monkeypatch.setattr(setup.getpass, "getpass", prompt)
+    monkeypatch.setattr(setup, "read_admin_password", prompt)
     monkeypatch.setattr(setup.secrets, "token_urlsafe", generate)
     monkeypatch.setattr(setup, "configure_database", lambda *a: journal["database"].append(a))
     monkeypatch.setattr(setup, "set_secret", lambda repo, name, value: journal["saved"].update({name: value}))

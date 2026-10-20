@@ -17,6 +17,7 @@ import secrets
 import subprocess
 import sys
 import time
+import warnings
 from contextlib import contextmanager
 from pathlib import Path
 from urllib.parse import quote
@@ -37,6 +38,69 @@ def certificate_path(root):
     return path
 
 
+def gui_password(project_ref):
+    """Private local dialog: native paste support, masked text, no clipboard inspection."""
+    try:
+        import tkinter as tk
+        from tkinter import simpledialog
+    except ImportError:
+        raise SetupError("Janela indisponivel; instale Tcl/Tk do Python ou use --password-input console.") from None
+    try:
+        root = tk.Tk()
+    except tk.TclError:
+        raise SetupError("Nao foi possivel abrir a janela; use --password-input console.") from None
+    try:
+        root.withdraw()
+        return simpledialog.askstring(
+            "PromoSearch - senha do banco",
+            "Senha administradora do banco Supabase\n"
+            f"Projeto: {project_ref}\n\n"
+            "Cole a senha definida no projeto.\nNao e a senha de login do painel Supabase.",
+            show="*",
+            parent=root,
+        )
+    finally:
+        root.destroy()
+
+
+def read_admin_password(args):
+    mode = getattr(args, "password_input", "auto")
+    if mode == "gui" or (mode == "auto" and os.name == "nt"):
+        print("Informe a senha na janela PromoSearch que sera aberta.")
+        value = gui_password(args.project_ref)
+    else:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", getpass.GetPassWarning)
+            try:
+                value = getpass.getpass("Senha do banco que voce definiu ao criar o projeto: ")
+            except getpass.GetPassWarning:
+                raise SetupError("Terminal sem entrada privada; use --password-input gui.") from None
+    if value is None:
+        raise SetupError("Entrada de senha cancelada; nenhuma senha foi alterada.")
+    if any(ord(c) < 32 or 127 <= ord(c) <= 159 for c in value):
+        raise SetupError(
+            "Entrada contem caracteres de controle da colagem; use a janela --password-input gui. "
+            "Nenhuma senha foi enviada ao banco."
+        )
+    return value
+
+
+def connect_with_auth_retry(**kwargs):
+    """Bounded reconnect for Supavisor's credential cache after a password rotation."""
+    import psycopg
+
+    for attempt in range(3):
+        try:
+            return psycopg.connect(**kwargs)
+        except psycopg.Error as exc:
+            auth_failure = exc.sqlstate == "28P01" or "password authentication failed" in str(exc).lower()
+            if not auth_failure or attempt == 2:
+                raise
+            print("Pooler recusou a autenticacao; aguardando 15 segundos antes de reconectar "
+                  f"({attempt + 1}/2), sem trocar a senha...")
+            time.sleep(15)
+
+
 @contextmanager
 def database_step(stage, *, password_changed=False):
     """Report only fixed diagnostic labels, never raw driver messages or SQL."""
@@ -51,7 +115,7 @@ def database_step(stage, *, password_changed=False):
         elif "circuit breaker" in message:
             reason = "Pooler bloqueou tentativas temporariamente; aguarde alguns minutos antes de repetir."
         elif exc.sqlstate == "28P01" or "password authentication failed" in message:
-            reason = "Autenticacao recusada; confira a senha do usuario desta etapa."
+            reason = "Autenticacao recusada apos reconexoes; senha incorreta ou cache do pooler ainda desatualizado."
         elif "tenant or user not found" in message:
             reason = "Projeto/usuario nao localizado no pooler; confira host e referencia no painel Connect."
         elif exc.sqlstate == "42501":
@@ -136,7 +200,6 @@ def configure_environment(repo):
 
 
 def configure_database(args, new_password, admin_password, ca_path):
-    import psycopg
     from psycopg import sql
 
     common = dict(
@@ -150,7 +213,7 @@ def configure_database(args, new_password, admin_password, ca_path):
     )
     print("Validando conexao administradora com certificado oficial...")
     with database_step("Conexao administradora"):
-        admin = psycopg.connect(
+        admin = connect_with_auth_retry(
             **common, user="postgres." + args.project_ref, password=admin_password, autocommit=True
         )
     with admin:
@@ -170,7 +233,7 @@ def configure_database(args, new_password, admin_password, ca_path):
                 sql.SQL("ALTER ROLE radar_app PASSWORD {}").format(sql.Literal(verifier.decode("ascii")))
             )
     print("Validando conexao e permissoes de radar_app...")
-    with database_step("Conexao restrita", password_changed=True), psycopg.connect(
+    with database_step("Conexao restrita", password_changed=True), connect_with_auth_retry(
         **common, user="radar_app." + args.project_ref, password=new_password
     ) as app:
         if app.execute("SELECT current_user, current_schema()").fetchone() != ("radar_app", "radar"):
@@ -195,6 +258,7 @@ def parser():
     p.add_argument("--repo", required=True)
     p.add_argument("--project-ref", required=True)
     p.add_argument("--pooler-host", required=True)
+    p.add_argument("--password-input", choices=("auto", "gui", "console"), default="auto")
     return p
 
 
@@ -236,7 +300,7 @@ def execute(args):
         print("A senha administradora sera enviada somente ao seu PostgreSQL Supabase por TLS.")
         print("No GitHub sera salva apenas a conexao do usuario restrito radar_app.")
         print("A senha de radar_app sera gerada automaticamente; nao e necessario criar ou confirmar uma senha.")
-        admin_password = getpass.getpass("Senha do banco que voce definiu ao criar o projeto: ")
+        admin_password = read_admin_password(args)
         if not admin_password:
             raise SetupError("A senha administradora ficou vazia; nenhuma senha foi alterada.")
         # 32 random bytes (256 bits), kept only in memory until validated and saved to Secrets.

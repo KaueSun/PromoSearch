@@ -25,6 +25,7 @@ O configurador:
 - Publica os commits locais já revisados para disponibilizar o workflow de banco.
 - Prepara o Environment `production`, restringindo novos ambientes à branch `main` e preservando revisores/esperas existentes. Políticas existentes de branches protegidas são mantidas.
 - Solicita apenas a senha administradora do banco do projeto (não a senha de login do painel Supabase). Gera automaticamente uma senha exclusiva para `radar_app`, usando 32 bytes aleatórios seguros (256 bits), sem exibi-la nem pedir confirmação.
+- No Windows, abre uma janela local com campo mascarado e suporte à colagem, evitando comandos de controle recebidos pelo campo oculto do terminal. A entrada não é registrada e a área de transferência não é lida pelo configurador. `--password-input gui` força a janela; `--password-input console` mantém o modo terminal com entrada privada obrigatória. Cancelamento e caracteres de controle interrompem antes de enviar a senha.
 - Envia a senha administradora somente ao PostgreSQL Supabase, com TLS e validação de certificado/hostname.
 - Calcula o verificador SCRAM localmente antes de definir a senha de `radar_app`; a instrução SQL não contém sua senha nova em texto claro.
 - Verifica a conexão com `radar_app` e testa leitura/gravação numa transação descartada, sem inserir preços fictícios.
@@ -37,6 +38,8 @@ As senhas não aparecem na tela, no chat, em argumentos de processos ou em arqui
 Se `DATABASE_URL` já existir, o configurador não altera a senha nem sobrescreve a conexão existente; apenas preserva a configuração e solicita nova verificação. Se houver erro depois de definir a senha e antes de salvar o Secret, execute novamente: uma nova senha aleatória será gerada para concluir a configuração. A senha de `radar_app` fica somente na memória durante essa etapa e, depois, na conexão privada do GitHub Secrets. Erros de bibliotecas são sanitizados para não expor URI ou SQL.
 
 O erro informa a etapa (administradora, definição da senha ou conexão restrita) e um motivo seguro: certificado, autenticação, DNS, timeout, permissão ou bloqueio temporário. Não compartilhe a mensagem bruta do driver nem sua URL de conexão. Uma falha antes de definir a senha é indicada explicitamente; uma falha durante/depois dessa operação pode significar que a senha de `radar_app` já foi alterada.
+
+Depois de redefinir uma senha, o cache de credenciais do Session pooler pode causar recusas temporárias mesmo com a senha correta. O configurador faz até três tentativas de conexão, aguardando 15 segundos entre recusas de autenticação, sem repetir a alteração da senha. Falhas de certificado ou bloqueio explícito do pooler não são repetidas. Se persistir, não redefina a senha sucessivamente: confirme a entrada e o projeto; uma conexão direta por IPv6 pode distinguir senha incorreta de cache do pooler. Veja o [diagnóstico oficial de autenticação após rotação](https://supabase.com/docs/guides/troubleshooting/supavisor-error-password-authentication-failed-after-password-rotation).
 
 ## Confirmação da nuvem
 
