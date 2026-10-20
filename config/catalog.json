@@ -1,0 +1,21 @@
+{
+  "products": {},
+  "trusted_meli_sellers": [],
+  "rules": {
+    "historical_discount_pct": 20,
+    "competitor_discount_pct": 12,
+    "recent_drop_pct": 10,
+    "realert_drop_pct": 5,
+    "cooldown_hours": 1,
+    "min_reference_days": 7,
+    "min_recent_days": 3,
+    "min_competitors": 2,
+    "freshness_hours": 2,
+    "suspicious_drop_pct": 60,
+    "minimum_price_brl": 1200,
+    "retention_days": 100,
+    "max_watches": 50,
+    "max_alerts_per_run": 5,
+    "allow_non_new": false
+  }
+}

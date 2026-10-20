@@ -1,0 +1,18 @@
+{
+  "_warning": "EXEMPLO FICTÍCIO DE ESTRUTURA. Não é um notebook ou anúncio verificado. Não copiar para produção sem revisar.",
+  "products": {
+    "exemplo-configuracao-exata": {
+      "brand": "Acer",
+      "model": "Nitro V15",
+      "manufacturer_code": "SUBSTITUIR-PELO-CODIGO-REAL",
+      "cpu": "Intel Core i5-13420H",
+      "gpu": "NVIDIA GeForce RTX 4050 Laptop",
+      "ram_gb": 16,
+      "ssd_gb": 512,
+      "display": "Informar painel/resolução/Hz reais ou Não informado",
+      "gpu_variant": "Informar VRAM/TGP reais ou Não informado"
+    }
+  },
+  "trusted_meli_sellers": []
+}
+
