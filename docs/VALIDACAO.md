@@ -4,9 +4,11 @@
 
 O repositório público foi publicado e o CI original de Linux/Python 3.12 foi aprovado. No Supabase Free, foram criadas as dez tabelas do schema `radar`; consultas reais verificaram ausência de acesso por `anon`, `authenticated` e `service_role`. O usuário `radar_app` foi criado mediante aprovação do proprietário; outra consulta real confirmou CRUD nas dez tabelas e ausência de privilégios administrativos ou CREATE no schema. Nenhuma senha foi definida pelo agente.
 
-O configurador privado e o workflow Database check foram preparados. Os testes locais adicionais verificam transporte de segredos por stdin, ausência da senha administradora nos dados enviados ao GitHub, preservação de configurações existentes, geração automática da senha restrita com 32 bytes aleatórios e interrupção antes de alterar o banco quando a senha administradora fica vazia. Há somente um pedido de senha ao operador. Um teste manual em PostgreSQL local descartável verificou o verificador SCRAM e leitura/gravação com rollback usando senha fictícia. A autenticação real, gravação dos Secrets e execução do Database check ainda aguardam o proprietário.
+O proprietário executou o configurador privado: a conexão administradora autenticou, a conta restrita passou pelo teste de leitura/gravação com rollback e os Secrets DATABASE_URL e TOKEN_ENCRYPTION_KEY foram salvos no GitHub. A senha administradora permaneceu fora do GitHub. O [Database check no commit 782cd8a](https://github.com/KaueSun/PromoSearch/actions/runs/39455732091) terminou com sucesso, confirmando a conexão real de um executor do GitHub ao Supabase. O [CI do mesmo commit](https://github.com/KaueSun/PromoSearch/actions/runs/39455636648) também passou.
 
-A revisão da entrada de senha e das reconexões passou em **36 testes locais do configurador/workflows**. Os testes verificam preservação de caracteres especiais, rejeição de controles de colagem/cancelamento, proibição de entrada visível no terminal e limite de duas reconexões somente para recusas de autenticação, mantendo a mesma senha e sem repetir ALTER ROLE. A janela ainda precisa ser utilizada pelo proprietário com sua senha privada; isso não comprova que a autenticação real foi resolvida.
+A revisão da entrada de senha e das reconexões passou em **36 testes locais do configurador/workflows**. Os testes verificam preservação de caracteres especiais, rejeição de controles de colagem/cancelamento, proibição de entrada visível no terminal e limite de duas reconexões somente para recusas de autenticação, mantendo a mesma senha e sem repetir ALTER ROLE. O proprietário utilizou a janela e concluiu a configuração real. A causa exata das recusas anteriores não foi comprovada: tanto a entrada quanto a política de reconexão foram alteradas.
+
+O configurador privado do Discord e seu workflow manual foram preparados. **57 testes locais dos configuradores/workflows** passaram, incluindo fixtures de validação do destino, transporte privado de Secrets, confirmação de mensagem, proteção contra reenvio após despacho incerto e isolamento do Secret do webhook. Nenhum webhook real foi usado nesses testes; a configuração real do Discord aguarda o proprietário.
 
 ## Resultado executado
 
@@ -16,8 +18,8 @@ A revisão da entrada de senha e das reconexões passou em **36 testes locais do
 - Verificação estática e formatação: aprovadas.
 - Ambiente executado: Windows, Python 3.14.8 e PostgreSQL **18.4 real**, local e descartável, sem vínculo com Supabase.
 - Dependências com versões/hashes verificadas na instalação local; resolução de dependências Linux/Python 3.12 validada em dry-run. O [CI Linux/Python 3.12 do commit 88e6a30](https://github.com/KaueSun/PromoSearch/actions/runs/39451460669) passou no GitHub.
-- Após incluir o certificado oficial do Supabase e diagnóstico seguro por etapa: **89 testes locais aprovados**, incluindo PostgreSQL 18 real, e análise estática aprovada. O CI desta correção aguarda sua publicação pelo configurador.
-- Teste real sem senha no Session pooler: autoridades do sistema falharam na validação; o certificado público indicado pelo painel Supabase permitiu ao libpq validar cadeia/hostname e chegar ao pedido de senha. Isso ainda não comprova autenticação nem acesso aos dados pela nuvem.
+- Após incluir o certificado oficial do Supabase e diagnóstico seguro por etapa: **89 testes locais aprovados**, incluindo PostgreSQL 18 real, e análise estática aprovada. As correções subsequentes também passaram no CI remoto.
+- Teste real no Session pooler: autoridades do sistema falharam na validação; o certificado público indicado pelo painel Supabase permitiu ao libpq validar cadeia/hostname. Posteriormente, autenticação e acesso ao banco pela nuvem foram confirmados pelo proprietário e pelo Database check.
 
 ## O que os testes cobrem
 
@@ -29,13 +31,13 @@ Os testes de PostgreSQL realmente gravaram/leram dados, exerceram índices/const
 
 | Entregável solicitado | Estado |
 |---|---|
-| Código modular | Implementado e publicado; correção TLS preparada localmente |
-| Repositório público PromoSearch | Publicado em KaueSun/PromoSearch; CI anterior aprovado |
-| Banco persistente Supabase privado | Projeto/schema/dez tabelas/papel restrito verificados; senha/conexão/Secrets aguardam configuração pelo proprietário |
+| Código modular | Implementado e publicado; configurador Discord preparado localmente |
+| Repositório público PromoSearch | Publicado em KaueSun/PromoSearch; CI do commit 782cd8a aprovado |
+| Banco persistente Supabase privado | Conexão restrita/Secrets configurados; acesso real pelo GitHub Actions confirmado |
 | Agendamento a cada 30 minutos | Workflow pronto, não ativado |
 | Consulta oficial Mercado Livre | Conector implementado e testado com fixtures; acesso real depende da conta autorizada |
 | Amazon/Shopee/KaBuM!/Magalu/Casas Bahia | Sem coleta implementada; bloqueios documentados |
-| Webhook Discord | Payload/fluxo de entrega testados com fixture; webhook real não configurado |
+| Webhook Discord | Configurador privado e verificação na nuvem preparados e testados com fixtures; webhook real não configurado |
 | Comparação com frete entre vendedores | Motor testado; conector atual não fornece cotação e não ativa esse critério |
 | Logs e histórico | Implementados; CI executado na nuvem, monitoramento real ainda pendente |
 | Funcionamento independente do PC | Arquitetura preparada; aceitação em nuvem ainda pendente |

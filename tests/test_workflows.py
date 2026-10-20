@@ -43,3 +43,17 @@ def test_database_check_only_receives_database_secret():
     secret_names = re.findall(r"secrets\.([A-Z_]+)", text)
     assert secret_names == ["DATABASE_URL"]
     assert "python radar.py status" in text and "--send" not in text
+
+
+def test_discord_check_is_manual_and_only_receives_webhook():
+    text = (ROOT / ".github/workflows/discord.yml").read_text(encoding="utf-8")
+    config = yaml.load(text, Loader=yaml.BaseLoader)
+    assert set(config["on"]) == {"workflow_dispatch"}
+    assert config["permissions"] == {"contents": "read"}
+    job = config["jobs"]["discord"]
+    assert job["environment"] == "production" and "default_branch" in job["if"]
+    assert re.findall(r"secrets\.([A-Z_]+)", text) == ["DISCORD_WEBHOOK_URL"]
+    assert "python -m tools.configure_discord --verify-only" in text
+    for step in job["steps"]:
+        if "uses" in step:
+            assert re.fullmatch(r"actions/[a-z-]+@[a-f0-9]{40}", step["uses"])

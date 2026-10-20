@@ -2,9 +2,9 @@
 
 Monitor conservador de preços de notebooks gamers em Python. Execuções curtas no GitHub Actions, estado persistente em PostgreSQL privado e alertas por webhook Discord. Não exige computador ligado após a implantação.
 
-**Estado da entrega:** repositório público e CI aprovados; banco privado criado no Supabase; conector oficial Mercado Livre implementado e testado com fixtures. Senha da conta restrita, GitHub Secrets, autorização real da API e webhook ainda estão pendentes. Nenhuma oferta real foi validada nem recurso pago criado. O catálogo inicial está vazio intencionalmente.
+**Estado da entrega:** repositório público, CI e conexão real do GitHub Actions ao Supabase aprovados. A conexão restrita e a chave de criptografia foram salvas em GitHub Secrets pelo proprietário. Conector oficial Mercado Livre implementado e testado com fixtures; autorização real da API e webhook ainda estão pendentes. Nenhuma oferta real foi validada nem recurso pago criado. O catálogo inicial está vazio intencionalmente.
 
-**Progresso da implantação:** repositório público e CI Linux aprovados. O Supabase já recebeu as dez tabelas no schema privado `radar`; o usuário `radar_app` tem somente leitura/gravação nessas tabelas, sem criar tabelas, papéis ou bancos. Senha do usuário, GitHub Secrets e primeiro teste de conexão pelo Actions ainda precisam da etapa privada do proprietário. Veja o [configurador assistido](docs/CONFIGURAR-BANCO.md).
+**Progresso da implantação:** a [verificação real do banco pela nuvem](https://github.com/KaueSun/PromoSearch/actions/runs/39455732091) e o [CI Linux](https://github.com/KaueSun/PromoSearch/actions/runs/39455636648) passaram. O usuário `radar_app` acessa as dez tabelas do schema privado `radar`, sem criar tabelas, papéis ou bancos. Veja os configuradores privados de [banco](docs/CONFIGURAR-BANCO.md) e [Discord](docs/CONFIGURAR-DISCORD.md). O cron permanece desabilitado até concluir as integrações reais.
 
 ## O que mudou no MVP
 
