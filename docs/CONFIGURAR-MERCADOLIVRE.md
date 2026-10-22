@@ -2,6 +2,8 @@
 
 O DevCenter da conta já permite acessar **Minhas aplicações**. A integração ainda não está autorizada: nenhum token real do Mercado Livre foi obtido e nenhuma oferta real foi consultada.
 
+Em 22/10/2026, a [publicação da página no GitHub Pages](https://github.com/KaueSun/PromoSearch/actions/runs/39823793461) e o [CI do commit ed660c1](https://github.com/KaueSun/PromoSearch/actions/runs/39823791036) passaram. HTML, JavaScript e CSS responderam HTTP 200 e seus hashes corresponderam aos arquivos locais revisados. A origem é `main/docs`, com HTTPS obrigatório. Não é necessário executar novamente o publicador para continuar o cadastro. Os 21 testes locais da página/workflows também passaram, incluindo execução real do JavaScript com respostas OAuth sintéticas.
+
 ## Retorno HTTPS
 
 O Mercado Livre exige uma URL HTTPS de redirecionamento. A página estática preparada para este repositório é:
