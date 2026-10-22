@@ -6,6 +6,8 @@ Monitor conservador de preços de notebooks gamers em Python. Execuções curtas
 
 **Progresso da implantação:** a [verificação real do banco pela nuvem](https://github.com/KaueSun/PromoSearch/actions/runs/39455732091), a [entrega técnica ao Discord](https://github.com/KaueSun/PromoSearch/actions/runs/39457382809) e o [CI Linux](https://github.com/KaueSun/PromoSearch/actions/runs/39457291004) passaram. O usuário `radar_app` acessa as dez tabelas do schema privado `radar`, sem criar tabelas, papéis ou bancos. Veja os configuradores privados de [banco](docs/CONFIGURAR-BANCO.md) e [Discord](docs/CONFIGURAR-DISCORD.md). O cron permanece desabilitado até concluir as integrações reais.
 
+**Retomada em 22/10/2026:** o DevCenter permite iniciar o cadastro do aplicativo Mercado Livre. A [configuração inicial](docs/CONFIGURAR-MERCADOLIVRE.md) inclui uma página estática de retorno HTTPS, sem credenciais ou consulta de preços. Publicação dessa página, cadastro do aplicativo e autorização OAuth são etapas distintas; o acesso real à API ainda não foi validado.
+
 ## O que mudou no MVP
 
 O MVP original passou nos 8 testes existentes. Foram aproveitados os conceitos de comparação por configuração, histórico, controle de repetições, embeds e entrada manual. A versão 0.2 substitui SQLite de produção por PostgreSQL e separa os módulos. Também elimina alertas baseados apenas no desconto anunciado, dados fictícios em produção, CPUs genéricas e renovação de token dependente de intervenção a cada seis horas.
